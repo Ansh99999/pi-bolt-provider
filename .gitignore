@@ -1,0 +1,12 @@
+node_modules/
+*.tgz
+coverage/
+.worker-probe
+.env
+.env.*
+auth.json
+provider-adder.json
+models.json
+out/
+.compile-*/
+*.compile.log
