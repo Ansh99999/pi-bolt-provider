@@ -1,5 +1,7 @@
 export type Method = "responses" | "messages" | "chat" | "generative";
 export type Skin = "pi" | "claude-code" | "codex" | "opencode";
+export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+export type ThinkingLevelMap = Partial<Record<ThinkingLevel, string | null>>;
 
 export interface ProviderModel {
   id: string;
@@ -7,6 +9,7 @@ export interface ProviderModel {
   contextWindow?: number;
   maxTokens?: number;
   reasoning?: boolean;
+  thinkingLevelMap?: ThinkingLevelMap;
   input?: ("text" | "image")[];
 }
 
@@ -21,6 +24,10 @@ export interface ProviderDraft {
   models: ProviderModel[];
   selectedModelIds: string[];
   defaultModelId?: string;
+  /** Existing provider identity remains stable when its display name is edited. */
+  editingId?: string;
+  /** Leave native credentials, endpoint and client behavior intact (e.g. OAuth login). */
+  preserveConnection?: boolean;
 }
 
 export interface ProviderSummary {
@@ -48,6 +55,7 @@ export interface SaveResult {
   providerId: string;
   providerName: string;
   defaultModelId?: string;
+  enabledModels?: string[];
 }
 
 export function emptyDraft(): ProviderDraft {

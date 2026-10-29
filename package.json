@@ -1,6 +1,6 @@
 {
   "name": "pi-bolt-provider",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A small, on-demand provider setup wizard for Pi and Pi-Bolt.",
   "type": "module",
   "license": "MIT",

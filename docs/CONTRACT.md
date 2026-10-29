@@ -2,6 +2,14 @@
 
 All imports between source files use explicit `.ts` extensions. No runtime npm dependencies. Host imports come from `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` (both 1.4.0 for development). `src/types.ts` owns shared data shapes; do not change it without telling the orchestrator.
 
+## Version 0.2 update
+
+The changes here supersede older add-only and scope-append descriptions below. `provider-list.ts` provides the themed searchable browser with edit/delete actions; storage lists only native stored sign-ins and extension additions. `loadProviderDraft` restores editable data, `saveProvider(draft, reservedIds?, agentDir?, scopeBase?)` supports a stable `editingId` and a native `preserveConnection` mode, and `deleteProvider` removes only the target's saved files and settings entries. Native edits preserve credentials, provider fields, model definitions, and unrelated model overrides.
+
+The command snapshots active model choices before saving, persists selected models while preserving other providers, refreshes the catalog without network, and uses `ctx.switchSession` to resume the same conversation with its saved scope. All work after replacement uses the fresh context; the old command always exits. Temporary sessions and explicit CLI/project overrides are reported. This work is command-only; the entry point still only registers the command.
+
+`ProviderModel.thinkingLevelMap` follows Pi's native seven-level mapping. `thinking.ts` validates advertised maps/effort lists, with null for unsupported levels. The wizard keeps explicit metadata, uses consistent exact catalog matches when metadata is absent, and supports T to edit thinking support/levels. It never guesses capabilities from a model name. Skins and native streaming stay unchanged.
+
 ## Entrypoint and command (orchestrator)
 
 `index.ts` imports only ExtensionAPI as a type and registers /provider. Its handler dynamically imports `src/command.ts`, which loads storage and a native custom screen, presents Current provider/Add provider/List Providers, saves confirmed drafts, awaits `ctx.modelRegistry.refresh({ allowNetwork: false })`, then uses `pi.setModel` for a chosen global default. It must guard non-TUI execution and block duplicate wizard openings.

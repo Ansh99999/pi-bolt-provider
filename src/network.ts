@@ -1,5 +1,6 @@
 import { normalizeEndpoint } from "./endpoints.ts";
 import { profileHeaders, validateHeader } from "./headers.ts";
+import { discoveredThinking } from "./thinking.ts";
 import type { KeyCheck, ProviderDraft, ProviderModel } from "./types.ts";
 
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -65,9 +66,10 @@ function modelFromRow(row: unknown, google: boolean): ProviderModel | undefined 
   const contextWindow = integer(row.contextWindow ?? row.context_window ?? row.inputTokenLimit ?? row.context_length);
   const maxTokens = integer(row.maxTokens ?? row.max_output_tokens ?? row.outputTokenLimit ?? row.max_completion_tokens);
   const input = Array.isArray(row.input_modalities) ? row.input_modalities.filter((item): item is "text" | "image" => item === "text" || item === "image") : undefined;
+  const thinking = discoveredThinking(row);
   return { id, ...(name && name !== id ? { name } : {}), ...(contextWindow ? { contextWindow } : {}),
     ...(maxTokens && (!contextWindow || maxTokens <= contextWindow) ? { maxTokens } : {}),
-    ...(typeof row.reasoning === "boolean" ? { reasoning: row.reasoning } : {}), ...(input?.length ? { input: [...new Set(input)] } : {}) };
+    ...thinking, ...(input?.length ? { input: [...new Set(input)] } : {}) };
 }
 
 export async function fetchModels(draft: ProviderDraft, signal?: AbortSignal): Promise<ProviderModel[]> {

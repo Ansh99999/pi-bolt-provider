@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { stripVTControlCharacters } from "node:util";
 import { CURSOR_MARKER, visibleWidth } from "@earendil-works/pi-tui";
-import { ProviderWizard } from "../src/wizard.ts";
+import { ProviderWizard, type WizardOptions } from "../src/wizard.ts";
 import type { KeyCheck, ProviderDraft, ProviderModel } from "../src/types.ts";
 
 const ENTER = "\r";
@@ -39,7 +39,7 @@ function initial(): ProviderDraft {
   };
 }
 
-function setup(t: TestContext, draft?: ProviderDraft, services: Partial<Services> = {}) {
+function setup(t: TestContext, draft?: ProviderDraft, services: Partial<Services> = {}, options: Pick<WizardOptions, "knownModels" | "startAt"> = {}) {
   const results: (ProviderDraft | undefined)[] = [];
   const counts = { fetch: 0, check: 0, refresh: 0 };
   const wizard = new ProviderWizard({
@@ -48,6 +48,7 @@ function setup(t: TestContext, draft?: ProviderDraft, services: Partial<Services
     rows: () => 24,
     done: (value: ProviderDraft | undefined) => { results.push(value); },
     initialDraft: draft,
+    ...options,
     services: {
       fetchModels: (value, signal) => {
         counts.fetch++;
@@ -356,4 +357,51 @@ test("skin choice and custom header add/delete survive the review flow", (t) => 
   assert.equal(saved.headers["User-Agent"], "custom-client");
   assert.equal(saved.headers["X-Temporary"], undefined);
   assert.equal(saved.headers["X-Draft"], "kept");
+});
+
+test("fetched models inherit exact known thinking details and preserve advertised limits", async (t) => {
+  const h = setup(t, undefined, { fetchModels: async () => [{ id: "known" }, { id: "explicit-no", reasoning: false }] }, {
+    knownModels: [
+      { id: "known", api: "openai-responses", reasoning: true, thinkingLevelMap: { minimal: null, xhigh: "xhigh", max: "max" } },
+      { id: "explicit-no", api: "openai-responses", reasoning: true },
+    ],
+  });
+  toModels(h); h.press(" "); await settle(); h.press(ALL);
+  const saved = finish(h);
+  assert.equal(saved.models[0].reasoning, true);
+  assert.deepEqual(saved.models[0].thinkingLevelMap, { minimal: null, xhigh: "xhigh", max: "max" });
+  assert.equal(saved.models[1].reasoning, false);
+});
+
+test("thinking can be configured for a fetched model and reviewed before save", (t) => {
+  const draft = initial();
+  const h = setup(t, draft);
+  h.press(ESC, "t", CLEAR_LINE); h.paste("yes"); h.press(ENTER);
+  h.paste("off,low,medium,high,xhigh=maximum"); h.press(ENTER);
+  const saved = finish(h);
+  assert.equal(saved.models[0].reasoning, true);
+  assert.deepEqual(saved.models[0].thinkingLevelMap, { minimal: null, low: "low", medium: "medium", high: "high", xhigh: "maximum", max: null });
+});
+
+test("thinking configuration rejects invalid levels and keeps edits on Escape", (t) => {
+  const h = setup(t, initial());
+  h.press(ESC, "t", CLEAR_LINE); h.paste("yes"); h.press(ENTER);
+  h.paste("ultra"); h.press(ENTER);
+  assert.match(h.view(), /Use off, minimal/);
+  h.press(CLEAR_LINE); h.paste("low,high"); h.press(ESC, ESC, "t", ENTER, ENTER);
+  assert.deepEqual(finish(h).models[0].thinkingLevelMap, { off: null, minimal: null, low: "low", medium: null, high: "high", xhigh: null, max: null });
+});
+
+test("native login editing keeps connection screens hidden and needs no API key", (t) => {
+  const draft = { ...initial(), editingId: "native-login", preserveConnection: true, keys: [] };
+  const h = setup(t, draft, {}, { startAt: "models" });
+  assert.match(h.view(), /Edit provider/);
+  h.press(" ", "n");
+  assert.equal(h.counts.fetch, 0);
+  const saved = finish(h);
+  assert.equal(saved.preserveConnection, true);
+  assert.deepEqual(saved.keys, []);
+  const cancel = setup(t, draft, {}, { startAt: "models" });
+  cancel.press(ESC);
+  assert.deepEqual(cancel.results, [undefined]);
 });

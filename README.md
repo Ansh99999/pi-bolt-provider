@@ -26,7 +26,8 @@ The compile step uses Pi-Bolt's own compiler to include installed extensions in 
 - Adds a provider through a native terminal wizard: name, base URL, protocol, API keys, client skin/headers, models, and review.
 - Saves selected models to Pi's native model configuration and stores the active key in Pi's native auth store.
 - Sets a chosen global default provider and model after refresh.
-- Lists registered providers and shows the current provider, model, and base URL without displaying secrets.
+- Lists only saved sign-ins and providers you added, with search, method labels, model counts, editing, and deletion.
+- Applies model choices to the current saved conversation and future sessions, and preserves supported `/thinking` levels.
 
 Network access occurs only when you fetch models or check a key. Requests have a timeout and can be cancelled. The extension starts no background work, watchers, proxy, or request hooks while Pi starts or handles normal prompts.
 
@@ -55,8 +56,10 @@ The form follows Name → Base URL → Method → API keys → Header / Skin →
 | API keys | Arrows choose the active key; `N` adds; `D` deletes; `Ctrl+K` checks it. |
 | Header / Skin | Arrows highlight a skin; `Space` selects it; `N` adds a custom header; `D` deletes a highlighted custom header; `Enter` advances. |
 | Models | `Space` fetches; arrows and Page Up/Down move; `A` selects or removes one; `N` adds a manual model. |
+| Thinking | `T` edits thinking support and levels for the highlighted model. Blank levels use Pi's defaults; a list such as `off,low,medium,high,xhigh` limits the choices. Optional mappings such as `high=strong` use a provider's own value. |
 | Model selection | `Ctrl+A` selects all; `Ctrl+E` clears the selection; `Ctrl+D` marks the highlighted model as the harness default. |
 | Save selection | `Ctrl+S` or `Enter` moves to review; a separate `Enter` on Review confirms and saves. |
+| List Providers | Type to search; `Tab` or `Down` moves to rows; arrows choose a provider; `E` or `Enter` edits; `D` deletes after confirmation; `Tab` returns to search; `Esc` exits. |
 
 If a provider cannot list models, enter their IDs with `N`. A failed key check can mean that listing is unsupported; it does not automatically mean the key is invalid. A successful list check verifies model-list access, not every model's generation permissions.
 
@@ -66,11 +69,17 @@ The wizard's `generativecontent` label is a protocol choice, not an endpoint URL
 
 ## Configuration preservation
 
-Saving a provider merges selected models into Pi's native configuration and preserves unrelated models, credentials, and settings. If a global model scope already exists, newly saved models are appended without removing other providers. Existing project or CLI settings can still override the global default.
+Saving a provider merges selected models into Pi's native configuration and preserves unrelated models, credentials, and settings. Selected models become the enabled choices, with the same effect as choosing them in `/scoped-models`; no second selection is needed. Other providers retain their active choices. If they were all enabled before, their available models stay enabled.
+
+After saving, the extension uses Pi's supported resume operation to reopen the same saved conversation with its messages and choices intact. It does this only after confirmation. Explicit project or command-line choices can override global settings. Temporary conversations without a saved session file load the choices in their next saved conversation.
 
 After confirmation, a marked default is saved for future sessions and selected in the current session when Pi can load it. Existing project or command-line settings can override the global default in future sessions. Adding a provider without marking a default keeps the current model.
 
 Manual model entries default to a `128000` token context window and `16384` output tokens. Both values can be edited, and output tokens must not exceed the context window. You can also set thinking and image support.
+
+Model discovery preserves advertised thinking levels, including unsupported levels and provider-specific names. When the server omits them, exact matching model details already known to Pi are used when consistent. Use `T` to fill in missing details. The extension does not assume every model supports thinking.
+
+Editing providers added here reopens their saved setup. Editing a provider from `/login` opens its models and thinking choices while preserving its existing sign-in, native method, and connection. Deletion removes only the selected provider's saved details; it cannot remove credentials supplied outside Pi, such as environment variables.
 
 ## Client skins
 

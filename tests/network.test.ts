@@ -214,6 +214,67 @@ test('classifies key checks and never includes response bodies in errors', async
   assert.ok(!malformed.includes('MALFORMED-MARKER'));
 });
 
+test('applies explicit thinking metadata and ignores invalid advertised metadata', async (t) => {
+  const { origin } = await startServer(t, (_req, res) => {
+    return json(res, 200, {
+      data: [
+        {
+          id: 'mapped',
+          thinkingLevelMap: { high: 'extended', xhigh: 'xhigh', max: 'max' },
+        },
+        {
+          id: 'efforts',
+          supported_reasoning_efforts: ['none', 'low', 'xhigh', 'max'],
+        },
+        {
+          id: 'disabled',
+          reasoning: false,
+          reasoning_efforts: ['low', 'bogus'],
+        },
+        {
+          id: 'invalid',
+          thinking_level_map: { low: '', unsupported: 'value' },
+        },
+      ],
+    });
+  });
+
+  const models = await fetchModels(draft('responses', origin));
+  const byId = new Map(models.map((model) => [model.id, model]));
+  assert.deepEqual(byId.get('mapped'), {
+    id: 'mapped',
+    reasoning: true,
+    thinkingLevelMap: { high: 'extended', xhigh: 'xhigh', max: 'max' },
+  });
+  assert.deepEqual(byId.get('efforts'), {
+    id: 'efforts',
+    reasoning: true,
+    thinkingLevelMap: {
+      off: 'none',
+      minimal: null,
+      low: 'low',
+      medium: null,
+      high: null,
+      xhigh: 'xhigh',
+      max: 'max',
+    },
+  });
+  assert.deepEqual(byId.get('disabled'), {
+    id: 'disabled',
+    reasoning: false,
+    thinkingLevelMap: {
+      off: null,
+      minimal: null,
+      low: 'low',
+      medium: null,
+      high: null,
+      xhigh: null,
+      max: null,
+    },
+  });
+  assert.deepEqual(byId.get('invalid'), { id: 'invalid' });
+});
+
 test('refuses redirects without sending the key to the target', async (t) => {
   const { origin, requests } = await startServer(t, (_req, res, url) => {
     if (url.pathname === '/redirect/v1/models') {
